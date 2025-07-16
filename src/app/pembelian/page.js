@@ -1,9 +1,9 @@
 "use client";
 
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import Image from "next/image";
 
 const formatRupiah = (angka) =>
@@ -13,16 +13,13 @@ const formatRupiah = (angka) =>
     minimumFractionDigits: 0,
   }).format(angka);
 
-const PembelianPage = () => {
+function PembelianContent() {
   const searchParams = useSearchParams();
   const nama = searchParams.get("nama");
   const harga = searchParams.get("harga");
   const gambar = searchParams.get("gambar");
 
   const { data: session } = useSession();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isLoginModalOpen, setLoginModalOpen] = useState(false);
-  const [isRegisterModalOpen, setRegisterModalOpen] = useState(false);
 
   const handleCOD = async () => {
     if (!session) {
@@ -30,29 +27,21 @@ const PembelianPage = () => {
       return;
     }
 
-    const orderData = {
-      nama,
-      harga,
-      metode: "COD",
-      email: session.user.email,
-    };
-
     try {
       const res = await fetch("/api/order-cod", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(orderData),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nama,
+          harga,
+          metode: "COD",
+          email: session.user.email,
+        }),
       });
 
-      if (res.ok) {
-        alert(
-          "Pesanan COD berhasil dibuat! Kami akan segera menghubungi Anda."
-        );
-      } else {
-        alert("Gagal membuat pesanan COD.");
-      }
+      res.ok
+        ? alert("Pesanan COD berhasil dibuat!")
+        : alert("Gagal membuat pesanan COD.");
     } catch (err) {
       console.error(err);
       alert("Terjadi kesalahan.");
@@ -68,23 +57,15 @@ const PembelianPage = () => {
     try {
       const res = await fetch("/api/payment", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: [
-            {
-              nama,
-              harga: parseInt(harga), // Pastikan harga dikonversi ke angka
-            },
-          ],
+          items: [{ nama, harga: parseInt(harga) }],
           total: parseInt(harga),
           email: session.user.email,
         }),
       });
 
       const data = await res.json();
-
       if (data.token) {
         window.snap.pay(data.token, {
           onSuccess: () => alert("Pembayaran berhasil!"),
@@ -96,7 +77,7 @@ const PembelianPage = () => {
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan saat membuat transaksi.");
+      alert("Terjadi kesalahan.");
     }
   };
 
@@ -112,7 +93,6 @@ const PembelianPage = () => {
 
   return (
     <div>
-      {/* Navbar, modal, dan UI lainnya tetap sama */}
       <Link
         href="/produk"
         className="bg-blue-600 py-1 px-4 rounded-sm text-white inline-block mt-4 ml-6"
@@ -122,7 +102,7 @@ const PembelianPage = () => {
 
       <div className="p-6 max-w-xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Pembelian Produk</h1>
-        <img
+        <image
           src={gambar}
           alt={nama}
           className="w-80 object-cover rounded-lg shadow mb-4"
@@ -147,6 +127,12 @@ const PembelianPage = () => {
       </div>
     </div>
   );
-};
+}
 
-export default PembelianPage;
+export default function PembelianPage() {
+  return (
+    <Suspense fallback={<p className="p-6">Loading...</p>}>
+      <PembelianContent />
+    </Suspense>
+  );
+}
